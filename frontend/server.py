@@ -53,7 +53,11 @@ def _validate_id(value: str, name: str) -> str:
 
 
 def _is_local_backend() -> bool:
-    return "localhost" in BACKEND_URL or "127.0.0.1" in BACKEND_URL or "backend" in BACKEND_URL
+    return (
+        "localhost" in BACKEND_URL
+        or "127.0.0.1" in BACKEND_URL
+        or "backend" in BACKEND_URL
+    )
 
 
 def _get_auth_headers() -> dict[str, str]:

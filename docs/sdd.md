@@ -293,7 +293,7 @@ Service Perimeter: agent-starter-adk-cr-perimeter
 
 ```
 User --> [HTTPS] --> Cloud LB --> Frontend (Cloud Run, public)
-  |      [Graceful Fallbacks: Frontend displays 
+  |      [Graceful Fallbacks: Frontend displays
   |       "temporarily unavailable" on 429/5xx errors]
   |
   +--> [HTTPS + ID Token] --> Direct VPC Egress --> Backend (Cloud Run, private)
@@ -439,8 +439,8 @@ To ensure Operational Excellence, the following Cloud Monitoring Alert Policies 
 | Layer | Location | Runner | Description |
 |-------|----------|--------|-------------|
 | Unit tests | `tests/unit/` | `pytest` | Isolated component tests |
-| Integration tests (agent) | `tests/integration/test_agent.py` | `pytest` | Tests agent streaming via ADK `Runner` with in-memory sessions |
-| Integration tests (server) | `tests/integration/test_server_e2e.py` | `pytest` | Spins up full FastAPI server, tests `/run_sse`, error handling, and `/feedback` |
+| Integration tests (agent) | `tests/integration/agent_test.py` | `pytest` | Tests agent streaming via ADK `Runner` with in-memory sessions |
+| Integration tests (server) | `tests/integration/server_e2e_test.py` | `pytest` | Spins up full FastAPI server, tests `/run_sse`, error handling, and `/feedback` |
 | Load tests | `tests/load_test/load_test.py` | `locust` | Simulates concurrent users hitting `/run_sse` with session creation |
 | Evaluation | `tests/eval/` | `adk eval` | LLM-as-judge evaluation against `evalsets/*.evalset.json` |
 

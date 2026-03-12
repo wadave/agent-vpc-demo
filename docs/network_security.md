@@ -575,6 +575,7 @@ import google.auth.transport.requests
 import google.oauth2.id_token
 import requests
 
+
 def call_backend(backend_url: str, payload: dict) -> requests.Response:
     """Invoke the private backend with an auto-refreshed identity token."""
     auth_req = google.auth.transport.requests.Request()

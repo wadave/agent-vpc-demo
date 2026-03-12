@@ -188,4 +188,3 @@ variable "feedback_logs_filter" {
   description = "Log Sink filter for capturing feedback data. Captures logs where the `log_type` field is `feedback`."
   default     = "jsonPayload.log_type=\"feedback\" jsonPayload.service_name=\"agent-starter-adk-cr\""
 }
-
