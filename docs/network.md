@@ -39,7 +39,7 @@ Network traffic is segmented between the public frontend and the private backend
 | Aspect | Detail |
 |---|---|
 | **Inbound** | External users → Global HTTPS Load Balancer → Cloud Armor WAF → Serverless NEG → Cloud Run. Direct `run.app` URL access is blocked (`INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER`). |
-| **Outbound** | `PRIVATE_RANGES_ONLY` — can only reach internal RFC 1918 addresses (i.e., the backend). Cannot reach the public internet. |
+| **Outbound** | `ALL_TRAFFIC` through the VPC — firewall rules block non-HTTPS internet egress. Can reach the backend and Google APIs via Private Google Access. |
 | **External API calls** | No. The frontend can only talk to the backend Cloud Run service. |
 
 ### Backend (Private Subnet)
@@ -155,7 +155,7 @@ Cloud Armor WAF (rate limit, SQLi/XSS block)
     │
     ▼
 Frontend Cloud Run ── frontend-subnet (10.0.1.0/24)
-    │  (internal only, PRIVATE_RANGES_ONLY egress)
+    │  (ALL_TRAFFIC egress through VPC)
     ▼
 Backend Cloud Run ─── backend-subnet (10.0.2.0/24)
     │
@@ -168,7 +168,7 @@ Backend Cloud Run ─── backend-subnet (10.0.2.0/24)
 
 | Service | Outbound to Internet | How |
 |---|---|---|
-| **Frontend** | No | `PRIVATE_RANGES_ONLY` egress — trapped in VPC |
+| **Frontend** | No | `ALL_TRAFFIC` egress through VPC — firewall blocks non-HTTPS internet egress |
 | **Backend** | HTTPS only (port 443) | Via Cloud NAT through the private subnet. All non-443 traffic is denied by firewall. |
 
 ### Can each service call external APIs?

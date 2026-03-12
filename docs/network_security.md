@@ -6,82 +6,13 @@ This document provides implementation-level detail for the network and security 
 
 ## Table of Contents
 
-0. [How Serverless Networking Works on GCP](#0-how-serverless-networking-works-on-gcp)
 1. [VPC Design](#1-vpc-design)
 2. [Network Segmentation](#2-network-segmentation)
-3. [Private Endpoints (Private Google Access & Private Service Connect)](#3-private-endpoints)
+3. [Private Endpoints](#3-private-endpoints)
 4. [Zero-Trust Architecture](#4-zero-trust-architecture)
 5. [VPC Service Controls (Service Perimeters)](#5-vpc-service-controls-service-perimeters)
 6. [Firewall Policies](#6-firewall-policies)
 7. [Additional Security Controls](#7-additional-security-controls)
-
----
-
-## 0. How Serverless Networking Works on GCP
-
-Before diving into implementation, it's important to understand how Cloud Run relates to VPC subnets. This is a common point of confusion.
-
-### 0.1 The Default: Google-Managed Networking
-
-When you deploy a Cloud Run service **without** VPC configuration (which is what the starter-pack does out of the box), your container runs on Google's shared, managed infrastructure:
-
-```
-Internet --> Google Front End --> Cloud Run (Google-managed network) --> Google APIs
-                                      |
-                                 No VPC involved.
-                                 No subnet, no firewall rules,
-                                 no Private Google Access.
-                                 Google handles everything.
-```
-
-In this default mode:
-- Cloud Run has **no access** to your VPC. It can only see the public internet and Google APIs.
-- Outbound traffic to Google APIs (Vertex AI, GCS, etc.) travels over Google's internal backbone automatically.
-- There are no subnets, no firewall rules, and no NAT to configure.
-
-**This is the current state of the starter-pack code.** It works because Cloud Run abstracts the networking away.
-
-### 0.2 The Bridge: Connecting Cloud Run to Your VPC
-
-To enforce enterprise security controls (firewall rules, Private Google Access, VPC Service Controls), you must build a **bridge** from Cloud Run into your VPC. There are two mechanisms:
-
-| Mechanism | How It Works | Cloud Run Gets Subnet IP? | Firewall Rules Apply? |
-|-----------|-------------|---------------------------|----------------------|
-| **Serverless VPC Access Connector** (Legacy) | Creates a pool of small VMs (`e2-micro`) that proxy traffic between Cloud Run and your VPC | No (connector VMs have subnet IPs) | To connector VMs only |
-| **Direct VPC Egress** (Modern, recommended) | Each Cloud Run instance gets an internal IP directly from your subnet | **Yes** -- each instance gets a `10.x.x.x` IP | **Yes** -- instance is subject to all subnet firewall rules |
-
-### 0.3 Direct VPC Egress: Cloud Run Becomes a VPC Citizen
-
-With Direct VPC Egress, Cloud Run instances behave like VMs for all outbound traffic:
-
-```
-Cloud Run instance (container)
-  |
-  +-- Gets IP 10.0.2.5 from backend-subnet
-  |
-  +-- Subject to firewall rules on backend-subnet
-  |
-  +-- If subnet has Private Google Access --> uses it
-  |
-  +-- If subnet has Cloud NAT --> uses it
-  |
-  +-- If subnet has no internet route --> no internet access
-```
-
-**Analogy:** Think of Cloud Run like a remote worker. By default they work from home (Google's network). Direct VPC Egress gives them a **VPN into your office** -- they get an office IP address and must follow all the office's security rules (firewall, no-internet, private API access).
-
-### 0.4 What's Real vs. What's Managed
-
-| Component | Managed by Google? | Visible in Your VPC? |
-|-----------|-------------------|---------------------|
-| Compute (container runtime) | Yes | No |
-| IP addresses | Yes, but assigned from **your** subnet | **Yes** -- you see them in your subnet range |
-| Firewall rules | No -- **you manage** | **Yes** -- applied to subnet traffic |
-| Internet access | No -- **you manage** | **Yes** -- via Cloud NAT on subnet, or blocked |
-| Google API access | No -- **you manage** | **Yes** -- via Private Google Access on subnet |
-| Ingress (who can call the service) | Cloud Run controls via `ingress` setting + IAM | N/A (ingress is at Google's edge, not in your VPC) |
-
-**This document describes the target architecture using Direct VPC Egress** -- where Cloud Run instances are real VPC citizens with subnet IPs, subject to your firewall rules and Private Google Access configuration.
 
 ---
 
@@ -309,14 +240,15 @@ resource "google_cloud_run_v2_service" "frontend" {
     service_account = google_service_account.frontend_sa[each.key].email
 
     # Direct VPC Egress: instances get IPs from frontend-subnet.
-    # PRIVATE_RANGES_ONLY: only traffic to RFC 1918 ranges (i.e., the backend)
-    # goes through the VPC. All other egress uses Google's managed network.
+    # ALL_TRAFFIC: all egress goes through the VPC so Cloud Run's
+    # INGRESS_TRAFFIC_INTERNAL_ONLY on the backend recognises the
+    # caller as internal (VPC source IP).
     vpc_access {
       network_interfaces {
         network    = google_compute_network.vpc[each.key].id
         subnetwork = google_compute_subnetwork.frontend[each.key].id
       }
-      egress = "PRIVATE_RANGES_ONLY"
+      egress = "ALL_TRAFFIC"
     }
   }
 
@@ -391,46 +323,20 @@ resource "google_cloud_run_v2_service" "backend" {
 }
 ```
 
-### 2.2 How Direct VPC Egress Changes the Network Model
-
-```
-BEFORE (Default / VPC Connector):              AFTER (Direct VPC Egress):
-
-Cloud Run container                            Cloud Run container
-  |                                              |
-  +-- Runs on Google's managed network           +-- Gets IP 10.0.2.5 from backend-subnet
-  |                                              |
-  +-- (optional) Proxy through connector         +-- IS a VPC citizen
-  |   VMs at 10.0.3.x                           |
-  |                                              +-- Firewall rules apply directly
-  +-- Firewall rules apply to                   |
-      connector VMs, not container               +-- Private Google Access works natively
-                                                 |
-                                                 +-- Cloud NAT applies (if configured)
-                                                 |
-                                                 +-- No internet route = truly private
-```
-
-### 2.3 Segmentation Summary
+### 2.2 Segmentation Summary
 
 | Property | Frontend | Backend |
 |----------|----------|---------|
 | Cloud Run ingress | `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER` | `INGRESS_TRAFFIC_INTERNAL_ONLY` |
 | Direct VPC Egress subnet | `frontend-subnet` (10.0.1.0/24) | `backend-subnet` (10.0.2.0/24) |
-| VPC egress mode | `PRIVATE_RANGES_ONLY` (only backend calls via VPC) | `ALL_TRAFFIC` (everything through VPC) |
+| VPC egress mode | `ALL_TRAFFIC` (all traffic through VPC) | `ALL_TRAFFIC` (everything through VPC) |
 | Instance gets subnet IP | Yes | Yes |
 | Firewall rules apply | Yes | Yes |
 | Internet reachable (inbound) | Yes (via LB) | No |
-| Internet reachable (outbound) | No (`PRIVATE_RANGES_ONLY` -- trapped in VPC) | HTTPS only (port 443, via Cloud NAT) |
-| Google API access | Google-managed (not through VPC) | Private Google Access (through VPC) |
+| Internet reachable (outbound) | No (firewall blocks non-HTTPS egress) | HTTPS only (port 443, via Cloud NAT) |
+| Google API access | Via Private Google Access (through VPC) | Via Private Google Access (through VPC) |
 | Service account | `{name}-frontend` | `{name}-app` |
 | Authenticates callers | No (`allUsers` via LB only) | Yes (`--no-allow-unauthenticated`) |
-
-### 2.4 Why Two Different Egress Modes?
-
-- **Frontend (`PRIVATE_RANGES_ONLY`):** The frontend only needs VPC routing to reach the private backend. All other outbound traffic (e.g., loading external JS libraries, health checks) can use Google's default managed networking. This avoids the need to set up Cloud NAT for the frontend.
-
-- **Backend (`ALL_TRAFFIC`):** The backend must route *all* egress through the VPC so that firewall rules and Private Google Access are enforced. This ensures API calls to Vertex AI go through Private Google Access and that no data can leak to the internet.
 
 ---
 
@@ -468,36 +374,7 @@ Backend Cloud Run instance (IP: 10.0.2.5 in backend-subnet)
 | `bigquery.googleapis.com` | Backend | Telemetry external tables |
 | `run.googleapis.com` | Frontend | Service-to-service invocation (via VPC to internal backend URL) |
 
-### 3.2 Private Service Connect (Optional, Enhanced Isolation)
-
-For environments requiring dedicated private endpoints with their own internal IP addresses:
-
-```hcl
-# Private Service Connect endpoint for Vertex AI
-resource "google_compute_global_address" "psc_vertex_ai" {
-  for_each = local.deploy_project_ids
-
-  name         = "psc-vertex-ai"
-  project      = each.value
-  address_type = "INTERNAL"
-  purpose      = "PRIVATE_SERVICE_CONNECT"
-  network      = google_compute_network.vpc[each.key].id
-  address      = "10.0.4.1"
-}
-
-resource "google_compute_global_forwarding_rule" "psc_vertex_ai" {
-  for_each = local.deploy_project_ids
-
-  name                  = "psc-vertex-ai"
-  project               = each.value
-  network               = google_compute_network.vpc[each.key].id
-  ip_address            = google_compute_global_address.psc_vertex_ai[each.key].id
-  target                = "all-apis"
-  load_balancing_scheme = ""
-}
-```
-
-### 3.3 Verification
+### 3.2 Verification
 
 ```bash
 # From a test VM in backend-subnet, verify DNS resolution
@@ -505,7 +382,7 @@ nslookup aiplatform.googleapis.com
 # Should resolve to private.googleapis.com IPs (199.36.153.8/9/10/11)
 
 # Verify Cloud Run instances are getting subnet IPs
-gcloud run services describe agent-starter-adk-cr-backend \
+gcloud run services describe ${SERVICE_NAME}-backend \
   --region=us-central1 \
   --project=YOUR_PROJECT_ID \
   --format="yaml(spec.template.spec.containers,spec.template.metadata.annotations)"
@@ -676,7 +553,7 @@ VPC Service Controls create a security boundary around GCP resources to prevent 
 # If your org already has one, reference it with a data source instead
 resource "google_access_context_manager_access_policy" "policy" {
   parent = "organizations/${var.org_id}"
-  title  = "agent-starter-adk-cr-policy"
+  title  = "agent-vpc-demo-policy"
 }
 
 # Access level: allow CI/CD service account for deployments
@@ -698,7 +575,7 @@ resource "google_access_context_manager_access_level" "cicd_access" {
 resource "google_access_context_manager_service_perimeter" "perimeter" {
   parent = "accessPolicies/${google_access_context_manager_access_policy.policy.name}"
   name   = "accessPolicies/${google_access_context_manager_access_policy.policy.name}/servicePerimeters/agent_adk_perimeter"
-  title  = "agent-starter-adk-cr Perimeter"
+  title  = "agent-vpc-demo Perimeter"
 
   status {
     resources = [
@@ -784,7 +661,7 @@ Before enforcing a perimeter, test it in dry-run mode to identify violations wit
 ```bash
 # Create perimeter in dry-run mode
 gcloud access-context-manager perimeters dry-run create agent_adk_perimeter \
-  --title="agent-starter-adk-cr Perimeter" \
+  --title="agent-vpc-demo Perimeter" \
   --resources="projects/PROD_PROJECT_NUMBER,projects/STAGING_PROJECT_NUMBER" \
   --restricted-services="aiplatform.googleapis.com,storage.googleapis.com,bigquery.googleapis.com,logging.googleapis.com" \
   --policy=POLICY_ID
@@ -1249,14 +1126,14 @@ resource "google_artifact_registry_repository" "repo" {
 
 ```bash
 # Enable automatic vulnerability scanning (on-push)
-gcloud artifacts repositories update agent-starter-adk-cr-repo \
+gcloud artifacts repositories update ${SERVICE_NAME}-repo \
   --project=YOUR_CICD_PROJECT \
   --location=us-central1 \
   --enable-vulnerability-scanning
 
 # Scan an existing image manually
 gcloud artifacts docker images scan \
-  us-central1-docker.pkg.dev/YOUR_CICD_PROJECT/agent-starter-adk-cr-repo/agent-starter-adk-cr \
+  us-central1-docker.pkg.dev/YOUR_CICD_PROJECT/${SERVICE_NAME}-repo/${SERVICE_NAME} \
   --project=YOUR_CICD_PROJECT
 ```
 
@@ -1264,7 +1141,7 @@ gcloud artifacts docker images scan \
 
 ```bash
 # Verify no public access on the backend service
-gcloud run services get-iam-policy agent-starter-adk-cr-backend \
+gcloud run services get-iam-policy ${SERVICE_NAME}-backend \
   --region=us-central1 \
   --project=YOUR_PROJECT_ID \
   --format=json | \
@@ -1303,28 +1180,13 @@ variable "frontend_domain" {
 
 ---
 
-## Appendix A: Current State vs. Target Architecture
-
-| Layer | Starter-pack (current code) | Target (this document) |
-|-------|----------------------------|----------------------|
-| VPC | None | Custom VPC with 2 subnets |
-| Cloud Run -> VPC bridge | None | Direct VPC Egress (instances get subnet IPs) |
-| Backend ingress | `INGRESS_TRAFFIC_ALL` | `INGRESS_TRAFFIC_INTERNAL_ONLY` (backend), `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER` (frontend) |
-| Backend auth | `--no-allow-unauthenticated` | Same + VPC-level isolation |
-| Firewall rules | None | 7 rules (ingress/egress on subnet CIDRs + SA targeting) |
-| Google API access | Google-managed (automatic) | Private Google Access (explicit, via subnet) |
-| Cloud Armor | None | WAF with OWASP rules + rate limiting |
-| VPC-SC perimeter | None | Service perimeter around staging/prod |
-| VPC Connector | None | **Not needed** -- Direct VPC Egress replaces it |
-| Cloud Router/NAT | None | Cloud Router + Cloud NAT on backend subnet (HTTPS egress via auto-allocated IPs) |
-
-## Appendix B: Security Audit Checklist
+## Appendix: Security Audit Checklist
 
 Use this checklist before promoting to production:
 
 - [ ] Backend Cloud Run ingress is `INGRESS_TRAFFIC_INTERNAL_ONLY`
 - [ ] Backend uses Direct VPC Egress with `ALL_TRAFFIC` into `backend-subnet`
-- [ ] Frontend uses Direct VPC Egress with `PRIVATE_RANGES_ONLY` into `frontend-subnet`
+- [ ] Frontend uses Direct VPC Egress with `ALL_TRAFFIC` into `frontend-subnet`
 - [ ] Backend has no `allUsers` or `allAuthenticatedUsers` IAM bindings
 - [ ] Frontend SA has `roles/run.invoker` only on the backend service (not project-wide)
 - [ ] No service uses the default compute service account

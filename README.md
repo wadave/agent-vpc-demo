@@ -38,7 +38,7 @@ A conversational AI chatbot built on the [Google Agent Development Kit (ADK)](ht
    | Access           |    |                        |
    +------------------+    +------------------------+
 ```
-![architecture](./assets/architecture.jpg)
+![architecture](./assets/architecture.jpeg)
 
 - **Frontend** -- Lightweight chatbot UI in a public subnet. Accepts user messages over HTTPS and streams responses in real time via SSE.
 - **Backend** -- FastAPI server hosting a Google ADK agent in a private subnet. Inaccessible from the internet; only reachable from the frontend via Direct VPC Egress with IAM-authenticated service-to-service calls.
