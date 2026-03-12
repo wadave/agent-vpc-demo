@@ -2,8 +2,6 @@
 
 A conversational AI chatbot built on the [Google Agent Development Kit (ADK)](https://google.github.io/adk-docs/) and deployed to Google Cloud Run. The system uses a two-tier architecture: a public-facing **frontend** chatbot UI communicates with a private **backend** FastAPI server hosting a ReAct agent powered by Gemini 3 Flash Preview via Vertex AI.
 
-Generated with [`GoogleCloudPlatform/agent-starter-pack`](https://github.com/GoogleCloudPlatform/agent-starter-pack) version `0.39.0`.
-
 ## System Architecture
 
 ```
@@ -40,6 +38,7 @@ Generated with [`GoogleCloudPlatform/agent-starter-pack`](https://github.com/Goo
    | Access           |    |                        |
    +------------------+    +------------------------+
 ```
+![architecture](./assets/architecture.jpg)
 
 - **Frontend** -- Lightweight chatbot UI in a public subnet. Accepts user messages over HTTPS and streams responses in real time via SSE.
 - **Backend** -- FastAPI server hosting a Google ADK agent in a private subnet. Inaccessible from the internet; only reachable from the frontend via Direct VPC Egress with IAM-authenticated service-to-service calls.
