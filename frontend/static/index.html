@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agent Chat</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div id="chat-container">
+    <header id="chat-header">
+      <h1>Agent Chat</h1>
+      <span id="status-indicator" class="status-dot connected" title="Connected"></span>
+    </header>
+
+    <div id="messages"></div>
+
+    <form id="chat-form">
+      <input
+        id="chat-input"
+        type="text"
+        placeholder="Type a message..."
+        autocomplete="off"
+        autofocus
+      />
+      <button type="submit" id="send-btn" aria-label="Send">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 2L11 13"></path>
+          <path d="M22 2L15 22L11 13L2 9L22 2Z"></path>
+        </svg>
+      </button>
+    </form>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

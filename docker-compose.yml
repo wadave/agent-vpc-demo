@@ -1,0 +1,38 @@
+version: '3.8'
+
+secrets:
+  gcp_adc:
+    file: ~/.config/gcloud/application_default_credentials.json
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      secrets:
+        - gcp_adc
+    user: root
+    ports:
+      - "8080:8080"
+    volumes:
+      # Mount Application Default Credentials for Vertex AI/Gemini access
+      - ~/.config/gcloud/application_default_credentials.json:/tmp/keys/adc.json:ro
+    environment:
+      - PORT=8080
+      - GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/adc.json
+      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-dw-genai-dev}
+      # Required to tell ADK Vertex is used in standard envs
+      - GOOGLE_GENAI_USE_VERTEXAI=True
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8080"
+    environment:
+      - PORT=8080
+      # Use the Docker Compose service name 'backend' to route traffic internally
+      - BACKEND_URL=http://backend:8080
+    depends_on:
+      - backend
