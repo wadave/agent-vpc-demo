@@ -1,4 +1,4 @@
-# Implementation Summary: agent-starter-adk-cr
+# Implementation Summary: agent-vpc-demo
 
 **Date:** 2026-03-11
 
@@ -6,7 +6,7 @@
 
 ## System Overview
 
-**agent-starter-adk-cr** is a conversational AI chatbot built on the Google Agent Development Kit (ADK) and deployed to Google Cloud Run. It uses a two-tier architecture: a public-facing **frontend** chatbot UI communicates with a private **backend** FastAPI server hosting a ReAct agent powered by Gemini 3 Flash Preview via Vertex AI.
+**agent-vpc-demo** is a conversational AI chatbot built on the Google Agent Development Kit (ADK) and deployed to Google Cloud Run. It uses a two-tier architecture: a public-facing **frontend** chatbot UI communicates with a private **backend** FastAPI server hosting a ReAct agent powered by Gemini 3 Flash Preview via Vertex AI.
 
 ---
 

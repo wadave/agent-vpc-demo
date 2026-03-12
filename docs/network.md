@@ -1,8 +1,7 @@
 # Network and Security Architecture
 
-![agent-starter-adk architecture diagram](assets/architecture.jpg)
 
-This document details the network design, segmentation, and security perimeter configurations for the `agent-starter-adk-cr` application.
+This document details the network design, segmentation, and security perimeter configurations for the `agent-vpc-demo` application.
 
 ## 1. VPC Design
 

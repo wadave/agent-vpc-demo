@@ -1,4 +1,4 @@
-# Software Design Document: agent-starter-adk-cr
+# Software Design Document: agent-vpc-demo
 
 **Version:** 1.0
 **Date:** 2026-03-09
@@ -23,11 +23,11 @@
 
 ## 1. Overview
 
-**agent-starter-adk-cr** is a conversational AI agent built on the Google Agent Development Kit (ADK) and deployed to Google Cloud Run. The system exposes a chatbot interface (frontend) in a public-facing subnet that communicates with a FastAPI backend hosting the ADK agent in a private subnet. The architecture follows zero-trust security principles with VPC-based network segmentation, private endpoints, and defense-in-depth controls.
+**agent-vpc-demo** is a conversational AI agent built on the Google Agent Development Kit (ADK) and deployed to Google Cloud Run. The system exposes a chatbot interface (frontend) in a public-facing subnet that communicates with a FastAPI backend hosting the ADK agent in a private subnet. The architecture follows zero-trust security principles with VPC-based network segmentation, private endpoints, and defense-in-depth controls.
 
 ### 1.1 Context
 
-The project is generated from [`GoogleCloudPlatform/agent-starter-pack`](https://github.com/GoogleCloudPlatform/agent-starter-pack) v0.39.0 using the `adk` base template with Cloud Run as the deployment target. It implements a ReAct-pattern agent powered by Gemini 3 Flash Preview, with tool-calling capabilities for weather and time lookups.
+The project implements a ReAct-pattern agent powered by Gemini 3 Flash Preview, with tool-calling capabilities for weather and time lookups, deployed to Cloud Run using the `adk` base template.
 
 ---
 
@@ -249,7 +249,7 @@ The system implements zero-trust principles at every layer:
 To prevent data exfiltration, a VPC Service Controls perimeter should be configured around the project:
 
 ```
-Service Perimeter: agent-starter-adk-cr-perimeter
+Service Perimeter: agent-vpc-demo-perimeter
   Protected Services:
     - aiplatform.googleapis.com
     - storage.googleapis.com
@@ -396,7 +396,6 @@ Frontend Service:
 | `make local-backend` | Launch local backend server with hot-reload |
 | `make local-frontend` | Launch local frontend chatbot UI (connects to local backend) |
 | `make setup-dev-env` | Apply dev Terraform configuration |
-| `uvx agent-starter-pack setup-cicd` | Full CI/CD pipeline + infrastructure setup |
 
 ---
 
@@ -512,7 +511,7 @@ To ensure Operational Excellence, the following Cloud Monitoring Alert Policies 
 ## Appendix B: File Structure
 
 ```
-agent-starter-adk-cr/
+agent-vpc-demo/
 |-- backend/
 |   |-- __init__.py
 |   |-- agent.py                  # ADK agent definition (root_agent + tools)

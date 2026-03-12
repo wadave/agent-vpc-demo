@@ -42,25 +42,6 @@ lint = [
   "codespell>=2.2.0,<3.0.0"
 ]
 
-[tool.agent-starter-pack]
-# Generation metadata - enables CLI commands to understand project context
-# These fields allow any generated project to work as a remote template
-name = "agent-starter-adk-cr"
-description = "Simple ReAct agent"
-base_template = "adk"
-agent_directory = "backend"
-# Generation context
-generated_at = "2026-03-09T04:54:18.234056+00:00"
-asp_version = "0.39.0"
-
-[tool.agent-starter-pack.create_params]
-# Parameters used during project creation
-deployment_target = "cloud_run"
-session_type = "in_memory"
-cicd_runner = "google_cloud_build"
-include_data_ingestion = false
-datastore = "none"
-
 [tool.codespell]
 ignore-words-list = "rouge"
 skip = "./locust_env/*,uv.lock,.venv,./frontend,**/*.ipynb,**/package-lock.json"

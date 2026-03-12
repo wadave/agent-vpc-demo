@@ -1,4 +1,4 @@
-# Network & Security Architecture: agent-starter-adk-cr
+# Network & Security Architecture: agent-vpc-demo
 
 This document provides implementation-level detail for the network and security controls described in the [Software Design Document](sdd.md). Each section includes Terraform code, `gcloud` commands, or configuration snippets ready for integration into `deployment/terraform/`.
 

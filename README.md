@@ -1,4 +1,4 @@
-# agent-starter-adk-cr
+# agent-vpc-demo
 
 A conversational AI chatbot built on the [Google Agent Development Kit (ADK)](https://google.github.io/adk-docs/) and deployed to Google Cloud Run. The system uses a two-tier architecture: a public-facing **frontend** chatbot UI communicates with a private **backend** FastAPI server hosting a ReAct agent powered by Gemini 3 Flash Preview via Vertex AI.
 
@@ -51,7 +51,7 @@ For the full design, see [`docs/sdd.md`](docs/sdd.md). For network and security 
 ## Project Structure
 
 ```
-agent-starter-adk-cr/
+agent-vpc-demo/
 +-- backend/                          # ADK agent + FastAPI server
 |   +-- agent.py                      # Agent definition, tools, model config
 |   +-- fast_api_app.py               # FastAPI server (SSE, feedback, sessions)
@@ -109,21 +109,10 @@ This will start both the backend FastAPI server and the frontend UI proxy, conne
 
 For full command options and usage, refer to the [Makefile](Makefile).
 
-## Project Management
-
-| Command | What It Does |
-|---------|--------------|
-| `uvx agent-starter-pack setup-cicd` | One-command setup of entire CI/CD pipeline + infrastructure |
-| `uvx agent-starter-pack upgrade` | Auto-upgrade to latest version while preserving customizations |
-| `uvx agent-starter-pack extract` | Extract minimal, shareable version of your agent |
-
----
-
 ## Development
 
 Edit your agent logic in `backend/agent.py` and test with `make playground` -- it auto-reloads on save.
 For full-stack local development, run `make local-backend` and `make local-frontend` in separate terminals.
-See the [development guide](https://googlecloudplatform.github.io/agent-starter-pack/guide/development-guide) for the full workflow.
 
 ## Deployment
 
@@ -132,10 +121,8 @@ gcloud config set project <your-project-id>
 make deploy           # Deploy backend
 make deploy-frontend  # Deploy frontend
 ```
-To set up your production infrastructure (VPC, subnets, LB, WAF, CI/CD), run `uvx agent-starter-pack setup-cicd`.
-See the [deployment guide](https://googlecloudplatform.github.io/agent-starter-pack/guide/deployment) for details.
+To set up your production infrastructure (VPC, subnets, LB, WAF, CI/CD), apply the Terraform configurations in `deployment/terraform/`.
 
 ## Observability
 
 Built-in telemetry exports to Cloud Trace, BigQuery, and Cloud Logging.
-See the [observability guide](https://googlecloudplatform.github.io/agent-starter-pack/guide/observability) for queries and dashboards.
